@@ -1,0 +1,58 @@
+7º MeetUp
+
+- Quem
+- Automação
+			Linha de comando
+			User-Data
+			CloudFormation
+- Windows x Linux
+- Windows	nome da máquina
+			horário
+			pagefile
+			dns
+			troca de senha
+- Linux 	NewRelic
+			Apache & MySql
+- Linux - http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/user-data.html
+- Windows - qual o problema + grave?
+- Lembramos do que fazer - e o desfazer???
+- CloudFormation!
+- Templates - http://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/cfn-sample-templates.html
+- Linux - Wordpress
+- Windows 	Cliente
+			senha
+			nome da máquina
+			pagefile
+			Horário do Brasil
+			International Settings - intlsettings.bat
+			Baixar arquivo
+			Instala SQL Client
+			Criar arquivo de configuração
+			Regras de Firewall - HTTPS
+			Zabbix
+			NewRelic
+- Windows - SQL Express
+			senha
+			nome da máquina
+			pagefile
+			Horário do Brasil
+			International Settings - intlsettings.bat
+			Baixar arquivo
+			Criar arquivo de configuração
+			Windows authentication + SQL authentication
+			Habilita TCP/IP
+			Mapeamento de arquivos de dados / backups
+			Regras de Firewall - 30000-30001
+			Zabbix
+			NewRelic
+Resultados
+			15 minutos x 4 horas
+			ZERO erro
+Sugestoes
+			Baixe um conjunto de scripts
+			Instale sob demanda
+			Lembre-se:
+				linha de comando
+				User-Data
+				CloudFormation
+			

@@ -1,0 +1,2 @@
+net user administrator P@ssw0rd!
+shutdown -r -t 5

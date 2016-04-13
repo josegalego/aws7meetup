@@ -1,0 +1,703 @@
+{
+    "AWSTemplateFormatVersion" : "2010-09-09",
+    "Description"              : "KDW-CloudFormation-v1.3.3 Servidores Web - SQL Express - Regras de Firewall - Brazilian Settings - SQL Server by KDW",
+    "Parameters"               : {
+        "KeyName" : {
+            "Description" : "Nome de uma chave existente",
+            "Type"        : "AWS::EC2::KeyPair::KeyName",
+            "ConstraintDescription" : "Use uma chave existente."
+        },
+        "Cliente" : {
+            "Description" : "Cliente",
+            "Type"        : "String"
+        },
+        "SenhaAdminLocal" : {
+            "Description" : "Senha do administrator local",
+            "NoEcho"      : "true",
+            "Type"        : "String"
+        },
+        "IPWebServer"     : {
+            "Description" : "Endereco IP do Web Server",
+            "Type"        : "String",
+            "MinLength"   : "7",
+            "MaxLength"   : "16",
+            "Default"     : "172.23.20.0",
+            "AllowedPattern" : "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})",
+            "ConstraintDescription" : "Deve ser x.x.x.x."
+        },
+        "IPSQLServer"     : {
+            "Description" : "Endereco IP do SQL Server",
+            "Type"        : "String",
+            "MinLength"   : "7",
+            "MaxLength"   : "16",
+            "Default"     : "172.23.12.0",
+            "AllowedPattern" : "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})",
+            "ConstraintDescription" : "Deve ser x.x.x.x."
+        }
+    },
+    "Resources"                : {
+        "WebServer" : {
+            "Type" : "AWS::EC2::Instance",
+            "Metadata" : {
+                "AWS::CloudFormation::Init" : {
+                    "config" : {
+                        "sources" : {
+                            "C:\\KDW\\" : "http://kdwfiles.s3.amazonaws.com/7meetup/scripts.zip"
+                        },
+                        "files"   : {
+                            "c:\\cfn\\cfn-hup.conf" : {
+                                "content" : {
+                                    "Fn::Join" : [
+                                        "",
+                                        [
+                                            "[main]\n",
+                                            "stack=",
+                                            {
+                                                "Ref" : "AWS::StackId"
+                                            },
+                                            "\n",
+                                            "region=",
+                                            {
+                                                "Ref" : "AWS::Region"
+                                            },
+                                            "\n"
+                                        ]
+                                    ]
+                                }
+                            },
+                            "c:\\cfn\\hooks.d\\cfn-auto-reloader.conf" : {
+                                "content" : {
+                                    "Fn::Join" : [
+                                        "",
+                                        [
+                                            "[cfn-auto-reloader-hook]\n",
+                                            "triggers=post.update\n",
+                                            "path=Resources.WebServer.Metadata.AWS::CloudFormation::Init\n",
+                                            "action=cfn-init.exe -v -s ",
+                                            {
+                                                "Ref" : "AWS::StackId"
+                                            },
+                                            " -r WebServer",
+                                            " --region ",
+                                            {
+                                                "Ref" : "AWS::Region"
+                                            },
+                                            "\n"
+                                        ]
+                                    ]
+                                }
+                            },
+                            "C:\\KDW\\sqlncli.msi"                    : {
+                                "source" : "http://download.microsoft.com/download/F/E/D/FEDB200F-DE2A-46D8-B661-D019DFE9D470/ENU/x64/sqlncli.msi"
+                            }
+                        },
+                        "commands" : {
+                            "01-mudasenha" : {
+                                "command" : {
+                                    "Fn::Join" : [
+                                        "",
+                                        [
+                                            "net user administrator ",
+                                            {
+                                                "Ref" : "SenhaAdminLocal"
+                                            }
+                                        ]
+                                    ]
+                                },
+                                "waitAfterCompletion" : "5"
+                            },
+                            "02-horarioBrasil" : {
+                                "command" : "tzutil.exe /s \"E. South America Standard Time\"",
+                                "waitAfterCompletion" : "5"
+                            },
+                            "03-pagefile"      : {
+                                "command" : "wmic.exe pagefileset where name=\"C:\\\\pagefile.sys\" set InitialSize=512,MaximumSize=2048",
+                                "waitAfterCompletion" : "5"
+                            },
+                            "04-nomecomputador" : {
+                                "command" : {
+                                    "Fn::Join" : [
+                                        "",
+                                        [
+                                            "wmic computersystem where name='%computername%' rename name='",
+                                            {
+                                                "Ref" : "Cliente"
+                                            },
+                                            "WEB'"
+                                        ]
+                                    ]
+                                },
+                                "waitAfterCompletion" : "5"
+                            },
+                            "05-dnsserver"      : {
+                                "command" : "netsh interface ipv4 set dnsserver \"Ethernet\" static 172.23.11.11 primary",
+                                "waitAfterCompletion" : "5"
+                            },
+                            "06-reinicia"       : {
+                                "command" : "shutdown -r -t 5",
+                                "waitAfterCompletion" : "forever"
+                            },
+                            "09-sqlclient"      : {
+                                "command" : "msiexec /i c:\\KDW\\sqlncli.msi /qn IACCEPTSQLNCLILICENSETERMS=YES",
+                                "waitAfterCompletion" : "5"
+                            },
+                            "12-firewallWeb"    : {
+                                "command" : {
+                                    "Fn::Join" : [
+                                        "",
+                                        [
+                                            "powershell.exe ",
+                                            "-ExecutionPolicy",
+                                            " RemoteSigned",
+                                            " C:\\KDW\\firewallWeb.ps1"
+                                        ]
+                                    ]
+                                },
+                                "waitAfterCompletion" : "5"
+                            },
+                            "16-reinicia"       : {
+                                "command" : "shutdown -r -t 5",
+                                "waitAfterCompletion" : "forever"
+                            },
+                            "17-intlsettings"   : {
+                                "command" : "C:\\KDW\\intlsettings.bat",
+                                "waitAfterCompletion" : "5"
+                            }
+                        },
+                        "services" : {
+                            "windows" : {
+                                "cfn-hup" : {
+                                    "enabled" : "true",
+                                    "ensureRunning" : "true",
+                                    "files"         : [
+                                        "c:\\cfn\\cfn-hup.conf",
+                                        "c:\\cfn\\hooks.d\\cfn-auto-reloader.conf"
+                                    ]
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "Properties" : {
+                "InstanceInitiatedShutdownBehavior" : "stop",
+                "ImageId"                           : "ami-3d787d57",
+                "InstanceType"                      : "t2.micro",
+                "KeyName"                           : {
+                    "Ref" : "KeyName"
+                },
+                "UserData"                          : {
+                    "Fn::Base64" : {
+                        "Fn::Join" : [
+                            "",
+                            [
+                                "<script>\n",
+                                "cfn-init.exe -v -s ",
+                                {
+                                    "Ref" : "AWS::StackId"
+                                },
+                                " -r WebServer",
+                                " --region ",
+                                {
+                                    "Ref" : "AWS::Region"
+                                },
+                                "\n",
+                                "cfn-signal.exe -e %ERRORLEVEL% ",
+                                {
+                                    "Fn::Base64" : {
+                                        "Ref" : "WaitHandle"
+                                    }
+                                },
+                                "\n",
+                                "</script>"
+                            ]
+                        ]
+                    }
+                },
+                "Tags"                              : [
+                    {
+                        "Key" : "Name",
+                        "Value" : {
+                            "Fn::Join" : [
+                                "",
+                                [
+                                    {
+                                        "Ref" : "Cliente"
+                                    },
+                                    "WEB"
+                                ]
+                            ]
+                        }
+                    },
+                    {
+                        "Key" : "Customer",
+                        "Value" : {
+                            "Fn::Join" : [
+                                "",
+                                [
+                                    {
+                                        "Ref" : "Cliente"
+                                    }
+                                ]
+                            ]
+                        }
+                    }
+                ],
+                "BlockDeviceMappings"               : [
+                    {
+                        "DeviceName" : "/dev/sda1",
+                        "Ebs"        : {
+                            "VolumeSize" : "50"
+                        }
+                    }
+                ],
+                "NetworkInterfaces"                 : [
+                    {
+                        "DeleteOnTermination" : "true",
+                        "Description"         : "Primary network interface",
+                        "DeviceIndex"         : 0,
+                        "SubnetId"            : "subnet-idxxxxxx",
+                        "PrivateIpAddresses"  : [
+                            {
+                                "PrivateIpAddress" : {
+                                    "Ref" : "IPWebServer"
+                                },
+                                "Primary"          : "true"
+                            }
+                        ],
+                        "GroupSet"            : [
+                            {
+                                "Ref" : "sgClientePublica"
+                            },
+                            "sg-idxxxxxx"
+                        ]
+                    }
+                ]
+            }
+        },
+        "WaitHandle" : {
+            "Type" : "AWS::CloudFormation::WaitConditionHandle"
+        },
+        "WaitCondition" : {
+            "Type" : "AWS::CloudFormation::WaitCondition",
+            "DependsOn" : [
+                "WebServer",
+                "SQLServer"
+            ],
+            "Properties" : {
+                "Handle" : {
+                    "Ref" : "WaitHandle"
+                },
+                "Timeout" : "3600"
+            }
+        },
+        "SQLServer"     : {
+            "Type" : "AWS::EC2::Instance",
+            "Metadata" : {
+                "AWS::CloudFormation::Init" : {
+                    "config" : {
+                        "sources" : {
+                            "C:\\KDW\\" : "http://kdwfiles.s3.amazonaws.com/7meetup/scripts.zip"
+                        },
+                        "files"   : {
+                            "c:\\cfn\\cfn-hup.conf" : {
+                                "content" : {
+                                    "Fn::Join" : [
+                                        "",
+                                        [
+                                            "[main]\n",
+                                            "stack=",
+                                            {
+                                                "Ref" : "AWS::StackId"
+                                            },
+                                            "\n",
+                                            "region=",
+                                            {
+                                                "Ref" : "AWS::Region"
+                                            },
+                                            "\n"
+                                        ]
+                                    ]
+                                }
+                            },
+                            "c:\\cfn\\hooks.d\\cfn-auto-reloader.conf" : {
+                                "content" : {
+                                    "Fn::Join" : [
+                                        "",
+                                        [
+                                            "[cfn-auto-reloader-hook]\n",
+                                            "triggers=post.update\n",
+                                            "path=Resources.SQLServer.Metadata.AWS::CloudFormation::Init\n",
+                                            "action=cfn-init.exe -v -s ",
+                                            {
+                                                "Ref" : "AWS::StackId"
+                                            },
+                                            " -r SQLServer",
+                                            " --region ",
+                                            {
+                                                "Ref" : "AWS::Region"
+                                            },
+                                            "\n"
+                                        ]
+                                    ]
+                                }
+                            },
+                            "C:\\KDW\\sqlncli.msi"                    : {
+                                "source" : "http://download.microsoft.com/download/F/E/D/FEDB200F-DE2A-46D8-B661-D019DFE9D470/ENU/x64/sqlncli.msi"
+                            }
+                        },
+                        "commands" : {
+                            "01-mudasenha" : {
+                                "command" : {
+                                    "Fn::Join" : [
+                                        "",
+                                        [
+                                            "net user administrator ",
+                                            {
+                                                "Ref" : "SenhaAdminLocal"
+                                            }
+                                        ]
+                                    ]
+                                },
+                                "waitAfterCompletion" : "5"
+                            },
+                            "02-horarioBrasil" : {
+                                "command" : "tzutil.exe /s \"E. South America Standard Time\"",
+                                "waitAfterCompletion" : "5"
+                            },
+                            "03-pagefile"      : {
+                                "command" : "wmic.exe pagefileset where name=\"C:\\\\pagefile.sys\" set InitialSize=512,MaximumSize=2048",
+                                "waitAfterCompletion" : "5"
+                            },
+                            "04-nomecomputador" : {
+                                "command" : {
+                                    "Fn::Join" : [
+                                        "",
+                                        [
+                                            "wmic computersystem where name='%computername%' rename name='",
+                                            {
+                                                "Ref" : "Cliente"
+                                            },
+                                            "SQL'"
+                                        ]
+                                    ]
+                                },
+                                "waitAfterCompletion" : "5"
+                            },
+                            "05-dnsserver"      : {
+                                "command" : "netsh interface ipv4 set dnsserver \"Ethernet\" static 172.23.11.11 primary",
+                                "waitAfterCompletion" : "5"
+                            },
+                            "06-reinicia"       : {
+                                "command" : "shutdown -r -t 5",
+                                "waitAfterCompletion" : "forever"
+                            },
+                            "13-firewallSAPTools" : {
+                                "command" : {
+                                    "Fn::Join" : [
+                                        "",
+                                        [
+                                            "powershell.exe ",
+                                            "-ExecutionPolicy",
+                                            " RemoteSigned",
+                                            " C:\\KDW\\firewallSAPTools.ps1"
+                                        ]
+                                    ]
+                                },
+                                "waitAfterCompletion" : "5"
+                            },
+                            "14-enableTCP"        : {
+                                "command" : {
+                                    "Fn::Join" : [
+                                        "",
+                                        [
+                                            "powershell.exe ",
+                                            "-ExecutionPolicy",
+                                            " RemoteSigned",
+                                            " C:\\KDW\\enableSQLTCP.ps1"
+                                        ]
+                                    ]
+                                },
+                                "waitAfterCompletion" : "5"
+                            },
+                            "15-sqlConfig"        : {
+                                "command" : "C:\\KDW\\sqlconfig.bat",
+                                "waitAfterCompletion" : "5"
+                            },
+                            "16-reinicia"         : {
+                                "command" : "shutdown -r -t 5",
+                                "waitAfterCompletion" : "forever"
+                            },
+                            "17-criaSQLDirs"      : {
+                                "command" : "C:\\KDW\\criadirsbackup.bat",
+                                "waitAfterCompletion" : "5"
+                            },
+                            "18-intlsettings"     : {
+                                "command" : "C:\\KDW\\intlsettings.bat",
+                                "waitAfterCompletion" : "5"
+                            }
+                        },
+                        "services" : {
+                            "windows" : {
+                                "cfn-hup" : {
+                                    "enabled" : "true",
+                                    "ensureRunning" : "true",
+                                    "files"         : [
+                                        "c:\\cfn\\cfn-hup.conf",
+                                        "c:\\cfn\\hooks.d\\cfn-auto-reloader.conf"
+                                    ]
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "Properties" : {
+                "InstanceInitiatedShutdownBehavior" : "stop",
+                "ImageId"                           : "ami-b82025d2",
+                "InstanceType"                      : "t2.small",
+                "KeyName"                           : {
+                    "Ref" : "KeyName"
+                },
+                "UserData"                          : {
+                    "Fn::Base64" : {
+                        "Fn::Join" : [
+                            "",
+                            [
+                                "<script>\n",
+                                "cfn-init.exe -v -s ",
+                                {
+                                    "Ref" : "AWS::StackId"
+                                },
+                                " -r SQLServer",
+                                " --region ",
+                                {
+                                    "Ref" : "AWS::Region"
+                                },
+                                "\n",
+                                "cfn-signal.exe -e %ERRORLEVEL% ",
+                                {
+                                    "Fn::Base64" : {
+                                        "Ref" : "WaitHandle"
+                                    }
+                                },
+                                "\n",
+                                "</script>"
+                            ]
+                        ]
+                    }
+                },
+                "Tags"                              : [
+                    {
+                        "Key" : "Name",
+                        "Value" : {
+                            "Fn::Join" : [
+                                "",
+                                [
+                                    {
+                                        "Ref" : "Cliente"
+                                    },
+                                    "SQL"
+                                ]
+                            ]
+                        }
+                    },
+                    {
+                        "Key" : "Customer",
+                        "Value" : {
+                            "Fn::Join" : [
+                                "",
+                                [
+                                    {
+                                        "Ref" : "Cliente"
+                                    }
+                                ]
+                            ]
+                        }
+                    }
+                ],
+                "BlockDeviceMappings"               : [
+                    {
+                        "DeviceName" : "/dev/sda1",
+                        "Ebs"        : {
+                            "VolumeSize" : "60"
+                        }
+                    },
+                    {
+                        "DeviceName" : "xvdb",
+                        "Ebs"        : {
+                            "VolumeSize" : "50",
+                            "VolumeType" : "gp2"
+                        }
+                    }
+                ],
+                "NetworkInterfaces"                 : [
+                    {
+                        "DeleteOnTermination" : "true",
+                        "Description"         : "Primary network interface",
+                        "DeviceIndex"         : 0,
+                        "SubnetId"            : "subnet-idxxxxxx",
+                        "PrivateIpAddresses"  : [
+                            {
+                                "PrivateIpAddress" : {
+                                    "Ref" : "IPSQLServer"
+                                },
+                                "Primary"          : "true"
+                            }
+                        ],
+                        "GroupSet"            : [
+                            {
+                                "Ref" : "sgClientePrivada"
+                            },
+                            "sg-idxxxxxx"
+                        ]
+                    }
+                ]
+            }
+        },
+        "eipWeb"        : {
+            "Type" : "AWS::EC2::EIP",
+            "Properties" : {
+                "InstanceId" : {
+                    "Ref" : "WebServer"
+                },
+                "Domain" : "vpc"
+            }
+        },
+        "sgClientePublica" : {
+            "Type" : "AWS::EC2::SecurityGroup",
+            "Properties" : {
+                "GroupDescription" : {
+                    "Fn::Join" : [
+                        "",
+                        [
+                            "Security Group para ",
+                            {
+                                "Ref" : "Cliente"
+                            }
+                        ]
+                    ]
+                },
+                "VpcId"            : "vpc-c845c4ad",
+                "Tags"             : [
+                    {
+                        "Key" : "Name",
+                        "Value" : {
+                            "Fn::Join" : [
+                                "",
+                                [
+                                    {
+                                        "Ref" : "Cliente"
+                                    },
+                                    "Publica"
+                                ]
+                            ]
+                        }
+                    }
+                ],
+                "SecurityGroupIngress" : [
+                    {
+                        "IpProtocol" : "tcp",
+                        "FromPort"   : "443",
+                        "ToPort"     : "443",
+                        "CidrIp"     : "0.0.0.0/0"
+                    },
+                    {
+                        "IpProtocol" : "tcp",
+                        "FromPort"   : "8080",
+                        "ToPort"     : "8080",
+                        "CidrIp"     : "0.0.0.0/0"
+                    },
+                    {
+                        "IpProtocol" : "-1",
+                        "FromPort"   : "-1",
+                        "ToPort"     : "-1",
+                        "SourceSecurityGroupId" : "sg-idxxxxxx"
+                    }
+                ]
+            }
+        },
+        "sgClientePrivada" : {
+            "Type" : "AWS::EC2::SecurityGroup",
+            "Properties" : {
+                "GroupDescription" : {
+                    "Fn::Join" : [
+                        "",
+                        [
+                            "Security Group para ",
+                            {
+                                "Ref" : "Cliente"
+                            }
+                        ]
+                    ]
+                },
+                "VpcId"            : "vpc-idxxxxxx",
+                "Tags"             : [
+                    {
+                        "Key" : "Name",
+                        "Value" : {
+                            "Fn::Join" : [
+                                "",
+                                [
+                                    {
+                                        "Ref" : "Cliente"
+                                    },
+                                    "Privada"
+                                ]
+                            ]
+                        }
+                    }
+                ],
+                "SecurityGroupIngress" : [
+                    {
+                        "IpProtocol" : "-1",
+                        "FromPort"   : "-1",
+                        "ToPort"     : "-1",
+                        "SourceSecurityGroupId" : "sg-idxxxxxx"
+                    }
+                ]
+            }
+        },
+        "regra01"          : {
+            "Type" : "AWS::EC2::SecurityGroupIngress",
+            "DependsOn" : "sgClientePrivada",
+            "Properties" : {
+                "GroupId" : {
+                    "Ref" : "sgClientePrivada"
+                },
+                "IpProtocol" : "tcp",
+                "FromPort"   : "0",
+                "ToPort"     : "65535",
+                "SourceSecurityGroupId" : {
+                    "Ref" : "sgClientePrivada"
+                }
+            }
+        },
+        "regra02"          : {
+            "Type" : "AWS::EC2::SecurityGroupIngress",
+            "DependsOn" : [
+                "sgClientePublica",
+                "sgClientePrivada"
+            ],
+            "Properties" : {
+                "GroupId" : {
+                    "Ref" : "sgClientePublica"
+                },
+                "IpProtocol" : "tcp",
+                "FromPort"   : "0",
+                "ToPort"     : "65535",
+                "SourceSecurityGroupId" : {
+                    "Ref" : "sgClientePrivada"
+                }
+            }
+        }
+    },
+    "Outputs"                  : {
+        "eipWeb" : {
+            "Description" : "IP do WEBServer",
+            "Value"       : {
+                "Ref" : "eipWeb"
+            }
+        }
+    }
+}
